@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qui est le plus susceptible de... - Edition 500</title>
+    <style>
+        :root {
+            --bg: #0b0e14;
+            --card: #1a1d24;
+            --accent: #8b5cf6;
+            --spicy: #ff0055;
+            --trash: #f59e0b;
+            --text: #f8fafc;
+            --text-dim: #94a3b8;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            background-image: radial-gradient(circle at top right, rgba(139, 92, 246, 0.15), transparent 40%);
+        }
+
+        .screen {
+            width: 100%;
+            max-width: 600px;
+            padding: 20px;
+            display: none;
+            flex-direction: column;
+            max-height: 100vh;
+        }
+
+        .screen.active { display: flex; }
+
+        h1 { font-size: 2.2rem; text-align: center; margin-bottom: 5px; color: var(--accent); font-weight: 900; }
+        .sub { text-align: center; color: var(--text-dim); margin-bottom: 20px; font-size: 0.9rem; }
+
+        /* Grille Catégories */
+        .cat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+            overflow-y: auto;
+        }
+
+        .cat-card {
+            background: var(--card);
+            padding: 15px;
+            border-radius: 15px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            text-align: center;
+            transition: 0.2s;
+        }
+
+        .cat-card.selected { border-color: var(--accent); background: rgba(139, 92, 246, 0.1); }
+        .cat-card .emoji { font-size: 1.5rem; display: block; margin-bottom: 5px; }
+        .cat-card .name { font-weight: bold; font-size: 0.9rem; }
+
+        /* Game UI */
+        .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .box {
+            background: var(--card);
+            border-radius: 25px;
+            padding: 40px 20px;
+            min-height: 250px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin-bottom: 20px;
+        }
+
+        #q-text { font-size: 1.7rem; font-weight: 700; line-height: 1.4; transition: 0.3s; }
+        .badge {
+            position: absolute;
+            top: -10px;
+            background: var(--accent);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 900;
+        }
+
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 20px;
+            border-radius: 15px;
+            font-size: 1.2rem;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(139, 92, 246, 0.3);
+        }
+
+        .btn:active { transform: scale(0.98); }
+        .btn-s { background: #334155; padding: 8px 15px; font-size: 0.8rem; border-radius: 10px; border: none; color: white; cursor: pointer; }
+
+        @media (max-width: 400px) {
+            #q-text { font-size: 1.4rem; }
+            h1 { font-size: 1.7rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="setup" class="screen active">
+        <h1>Qui est-ce ?</h1>
+        <p class="sub">Sélectionne les thèmes (500 questions réelles)</p>
+        <div class="cat-grid">
+            <div class="cat-card selected" data-cat="fun"><span class="emoji">😂</span><span class="name">Fun</span></div>
+            <div class="cat-card" data-cat="serious"><span class="emoji">🤔</span><span class="name">Sérieux</span></div>
+            <div class="cat-card" data-cat="work"><span class="emoji">💻</span><span class="name">Boulot</span></div>
+            <div class="cat-card" data-cat="spicy"><span class="emoji">🌶️</span><span class="name">Spicy</span></div>
+            <div class="cat-card" data-cat="trash"><span class="emoji">🤮</span><span class="name">Trash</span></div>
+            <div class="cat-card" data-cat="newyear"><span class="emoji">🎇</span><span class="name">2026</span></div>
+        </div>
+        <button id="start" class="btn">C'est parti !</button>
+    </div>
+
+    <div id="game" class="screen">
+        <div class="top">
+            <button class="btn-s" id="to-menu">Menu</button>
+            <div id="count" style="font-size: 0.8rem; color: var(--text-dim);">0/0</div>
+            <button class="btn-s" id="toggle-audio">🔊 ON</button>
+        </div>
+        <div class="box">
+            <div class="badge" id="b-cat">THÈME</div>
+            <p id="q-text">Chargement...</p>
+        </div>
+        <button id="next" class="btn">Suivant</button>
+    </div>
+
+    <script>
+        const data = {
+            fun: [
+                "Qui est le plus susceptible de rire à un enterrement ?", "Qui est le plus susceptible de se perdre dans son propre quartier ?",
+                "Qui est le plus susceptible de parler à son chien comme à un humain ?", "Qui est le plus susceptible d'oublier son téléphone dans le frigo ?",
+                "Qui est le plus susceptible de rater une marche devant son crush ?", "Qui est le plus susceptible de chanter faux sous la douche ?",
+                "Qui est le plus susceptible de croire à un article du Gorafi ?", "Qui est le plus susceptible de pleurer devant une pub pour du fromage ?",
+                "Qui est le plus susceptible de mettre ses chaussettes à l'envers ?", "Qui est le plus susceptible de se faire peur tout seul dans le noir ?",
+                "Qui est le plus susceptible de renommer son chat 'Gros Tas' ?", "Qui est le plus susceptible de commander deux menus au McDo ?",
+                "Qui est le plus susceptible de porter un pyjama pour aller chercher le courrier ?", "Qui est le plus susceptible de parler tout seul au supermarché ?",
+                "Qui est le plus susceptible de rater une blague en la racontant ?", "Qui est le plus susceptible de croire aux fantômes ?",
+                "Qui est le plus susceptible de manger le dernier biscuit sans demander ?", "Qui est le plus susceptible d'avoir 1% de batterie toute la journée ?",
+                "Qui est le plus susceptible de trébucher sur un fil imaginaire ?", "Qui est le plus susceptible de se souvenir d'une pub d'il y a 20 ans ?",
+                "Qui est le plus susceptible de rester bloqué dans une porte tournante ?", "Qui est le plus susceptible de mettre du sel à la place du sucre ?",
+                "Qui est le plus susceptible de rater son propre anniversaire ?", "Qui est le plus susceptible de ne pas savoir quel jour on est ?",
+                "Qui est le plus susceptible de porter un pull moche de Noël en plein été ?", "Qui est le plus susceptible d'avoir peur des papillons ?",
+                "Qui est le plus susceptible de se coincer la tête entre deux barreaux ?", "Qui est le plus susceptible de dire 'bon appétit' au serveur ?",
+                "Qui est le plus susceptible de chercher ses lunettes alors qu'il les a sur le nez ?", "Qui est le plus susceptible de faire une grimace sur une photo de passeport ?",
+                "Qui est le plus susceptible de manger de la nourriture pour chien pour un pari ?", "Qui est le plus susceptible de tomber de son lit en dormant ?",
+                "Qui est le plus susceptible de confondre deux personnes connues ?", "Qui est le plus susceptible de faire un câlin à un inconnu par erreur ?",
+                "Qui est le plus susceptible de rester coincé dans un ascenseur et de paniquer direct ?", "Qui est le plus susceptible d'oublier où il a garé sa voiture ?",
+                "Qui est le plus susceptible de s'endormir devant une série en 5 minutes ?", "Qui est le plus susceptible de casser son écran de téléphone dans la première semaine ?",
+                "Qui est le plus susceptible de porter deux chaussures différentes ?", "Qui est le plus susceptible de courir après le bus alors qu'il est déjà parti ?",
+                "Qui est le plus susceptible de faire une sieste de 18h à 4h du matin ?", "Qui est le plus susceptible de manger un citron entier sans sourciller ?",
+                "Qui est le plus susceptible d'avoir une collection d'objets inutiles ?", "Qui est le plus susceptible d'être le premier à paniquer en cas d'invasion zombie ?",
+                "Qui est le plus susceptible de se faire mordre par un poney ?", "Qui est le plus susceptible d'avoir toujours une miette sur le visage ?",
+                "Qui est le plus susceptible de rater un créneau pendant 10 minutes ?", "Qui est le plus susceptible de mettre 3h à choisir un film sur Netflix ?",
+                "Qui est le plus susceptible de ne jamais finir son café ?", "Qui est le plus susceptible de parler à voix haute pendant un film ?",
+                "Qui est le plus susceptible de croire que le lait chocolaté vient des vaches marron ?", "Qui est le plus susceptible d'essayer de pousser une porte marquée 'Tirer' ?",
+                "Qui est le plus susceptible de se tromper de numéro en envoyant un message ?", "Qui est le plus susceptible de porter un masque de plongée dans son bain ?",
+                "Qui est le plus susceptible de collectionner les tickets de caisse ?", "Qui est le plus susceptible de pleurer devant un dessin animé ?",
+                "Qui est le plus susceptible d'avoir un rire qui fait rire tout le monde ?", "Qui est le plus susceptible de faire tomber sa glace après une seule bouchée ?",
+                "Qui est le plus susceptible d'acheter un gadget vu à la télé ?", "Qui est le plus susceptible de rester éveillé toute la nuit pour un jeu vidéo ?",
+                "Qui est le plus susceptible d'essayer de faire un salto et de finir à l'hôpital ?", "Qui est le plus susceptible de se déguiser sans aucune raison ?",
+                "Qui est le plus susceptible de parler avec un accent étranger pendant une heure ?", "Qui est le plus susceptible de rater sa sortie d'autoroute ?",
+                "Qui est le plus susceptible d'avoir peur des clowns ?", "Qui est le plus susceptible de faire un massage bizarre ?",
+                "Qui est le plus susceptible de manger de la pâte à modeler ?", "Qui est le plus susceptible de rester bloqué sur un mot pendant 10 secondes ?",
+                "Qui est le plus susceptible de faire une chute spectaculaire sans se faire mal ?", "Qui est le plus susceptible de dire 'Au revoir' à la fin d'un appel au lieu de 'Bonjour' ?",
+                "Qui est le plus susceptible d'avoir une photo de lui enfant vraiment gênante ?", "Qui est le plus susceptible de mettre des ananas sur sa pizza (et d'aimer ça) ?",
+                "Qui est le plus susceptible d'essayer de réparer un truc et de tout casser ?", "Qui est le plus susceptible de rater le compte à rebours du Nouvel An ?",
+                "Qui est le plus susceptible de se croire dans une comédie musicale ?", "Qui est le plus susceptible de faire une tête bizarre quand il réfléchit ?",
+                "Qui est le plus susceptible de porter une cravate avec un short ?", "Qui est le plus susceptible d'avoir un secret ridicule ?",
+                "Qui est le plus susceptible de courir bizarrement ?", "Qui est le plus susceptible de se croire plus fort qu'un ours ?"
+            ],
+            serious: [
+                "Qui est le plus susceptible de devenir président ?", "Qui est le plus susceptible de gagner un prix Nobel ?",
+                "Qui est le plus susceptible de donner les meilleurs conseils ?", "Qui est le plus susceptible de garder son calme en cas d'accident ?",
+                "Qui est le plus susceptible de devenir le pilier du groupe ?", "Qui est le plus susceptible de s'engager dans l'humanitaire ?",
+                "Qui est le plus susceptible de dire la vérité même si elle blesse ?", "Qui est le plus susceptible de pardonner une trahison ?",
+                "Qui est le plus susceptible de réussir un projet impossible ?", "Qui est le plus susceptible de changer de vie à 50 ans ?",
+                "Qui est le plus susceptible d'être le plus courageux ?", "Qui est le plus susceptible de sauver une vie ?",
+                "Qui est le plus susceptible de devenir centenaire ?", "Qui est le plus susceptible de ne jamais regretter ses choix ?",
+                "Qui est le plus susceptible de devenir un mentor ?", "Qui est le plus susceptible d'avoir toujours raison ?",
+                "Qui est le plus susceptible de rester fidèle jusqu'à la fin ?", "Qui est le plus susceptible de réussir son propre business ?",
+                "Qui est le plus susceptible de vivre en ermite dans les montagnes ?", "Qui est le plus susceptible de méditer chaque matin ?",
+                "Qui est le plus susceptible de ne jamais mentir ?", "Qui est le plus susceptible de prendre la défense des plus faibles ?",
+                "Qui est le plus susceptible d'être élu 'personne la plus fiable' ?", "Qui est le plus susceptible de ne jamais oublier une promesse ?",
+                "Qui est le plus susceptible de rester zen dans un embouteillage ?", "Qui est le plus susceptible d'apprendre de ses erreurs le premier ?",
+                "Qui est le plus susceptible de vivre avec le strict minimum ?", "Qui est le plus susceptible d'avoir un plan de secours pour tout ?",
+                "Qui est le plus susceptible de ne jamais élever la voix ?", "Qui est le plus susceptible de faire le tour du monde seul ?",
+                "Qui est le plus susceptible d'avoir la conscience la plus tranquille ?", "Qui est le plus susceptible de rester digne en toute circonstance ?",
+                "Qui est le plus susceptible de savoir tout réparer avec rien ?", "Qui est le plus susceptible d'être le meilleur parent ?",
+                "Qui est le plus susceptible de ne jamais juger les autres ?", "Qui est le plus susceptible de prendre les décisions difficiles ?",
+                "Qui est le plus susceptible d'avoir la plus grande fortune ?", "Qui est le plus susceptible de rester humble après un succès ?",
+                "Qui est le plus susceptible de passer sa vie à apprendre ?", "Qui est le plus susceptible de ne jamais céder à la pression ?",
+                "Qui est le plus susceptible d'être le plus protecteur ?", "Qui est le plus susceptible de ne jamais se plaindre ?",
+                "Qui est le plus susceptible d'être le premier à aider un inconnu ?", "Qui est le plus susceptible de dire 'je t'aime' en premier ?",
+                "Qui est le plus susceptible de vivre pour ses principes ?", "Qui est le plus susceptible de ne jamais se décourager ?",
+                "Qui est le plus susceptible de devenir une icône ?", "Qui est le plus susceptible de connaître la réponse à tout ?",
+                "Qui est le plus susceptible d'être le plus attentif aux autres ?", "Qui est le plus susceptible de réussir un marathon ?",
+                "Qui est le plus susceptible de ne jamais trahir un ami ?", "Qui est le plus susceptible d'être le plus honnête ?",
+                "Qui est le plus susceptible d'avoir la meilleure hygiène de vie ?", "Qui est le plus susceptible de devenir professeur ?",
+                "Qui est le plus susceptible d'être le plus calme sous la pression ?", "Qui est le plus susceptible d'être le plus ponctuel ?",
+                "Qui est le plus susceptible de toujours voir le bon côté des choses ?", "Qui est le plus susceptible de devenir le confident de tout le monde ?",
+                "Qui est le plus susceptible d'avoir la maison la plus ordonnée ?", "Qui est le plus susceptible de gérer ses finances parfaitement ?",
+                "Qui est le plus susceptible d'être le plus discret ?", "Qui est le plus susceptible de rester fidèle à lui-même ?",
+                "Qui est le plus susceptible d'être le plus ambitieux ?", "Qui est le plus susceptible de mener une révolution ?",
+                "Qui est le plus susceptible d'avoir la mémoire la plus longue ?", "Qui est le plus susceptible d'être le plus discipliné ?",
+                "Qui est le plus susceptible d'être le plus empathique ?", "Qui est le plus susceptible de savoir écouter sans interrompre ?",
+                "Qui est le plus susceptible d'être le plus travailleur ?", "Qui est le plus susceptible de ne jamais perdre ses nerfs ?",
+                "Qui est le plus susceptible de devenir une source d'inspiration ?", "Qui est le plus susceptible d'être le plus juste ?",
+                "Qui est le plus susceptible de ne jamais se laisser influencer ?", "Qui est le plus susceptible d'être le plus patient ?",
+                "Qui est le plus susceptible d'avoir une vision claire de son avenir ?", "Qui est le plus susceptible d'être le plus reconnaissant ?",
+                "Qui est le plus susceptible d'avoir le plus d'amis fidèles ?", "Qui est le plus susceptible d'être le plus authentique ?",
+                "Qui est le plus susceptible de ne jamais reculer devant l'adversité ?", "Qui est le plus susceptible de laisser une trace dans l'histoire ?"
+            ],
+            work: [
+                "Qui est le plus susceptible de démissionner sur un coup de tête ?", "Qui est le plus susceptible de devenir le PDG ?",
+                "Qui est le plus susceptible de dormir au bureau ?", "Qui est le plus susceptible d'envoyer un mail à 3h du matin ?",
+                "Qui est le plus susceptible de mentir pour un congé ?", "Qui est le plus susceptible de flirter avec la RH ?",
+                "Qui est le plus susceptible de se faire virer pour une gaffe ?", "Qui est le plus susceptible de connaître tous les potins ?",
+                "Qui est le plus susceptible de manger le plat d'un collègue ?", "Qui est le plus susceptible de devenir influenceur LinkedIn insupportable ?",
+                "Qui est le plus susceptible d'avoir le bureau le plus bordélique ?", "Qui est le plus susceptible de répondre 'Vu' à son patron ?",
+                "Qui est le plus susceptible d'oublier de couper son micro en réunion ?", "Qui est le plus susceptible de bosser bourré ?",
+                "Qui est le plus susceptible de voler des fournitures ?", "Qui est le plus susceptible de faire une erreur à 1 million ?",
+                "Qui est le plus susceptible d'être en retard à chaque réunion ?", "Qui est le plus susceptible de critiquer le chef devant lui ?",
+                "Qui est le plus susceptible de ne rien faire de la journée ?", "Qui est le plus susceptible de devenir le chouchou du patron ?",
+                "Qui est le plus susceptible de rater sa promotion pour une soirée ?", "Qui est le plus susceptible de cacher une bouteille dans son tiroir ?",
+                "Qui est le plus susceptible de lancer une rumeur sur un collègue ?", "Qui est le plus susceptible de dénoncer un collègue ?",
+                "Qui est le plus susceptible d'avoir 30 jours de CP non pris ?", "Qui est le plus susceptible de ne jamais répondre aux mails ?",
+                "Qui est le plus susceptible d'avoir le meilleur salaire ?", "Qui est le plus susceptible de travailler en pyjama en télétravail ?",
+                "Qui est le plus susceptible de faire une sieste pendant un meeting ?", "Qui est le plus susceptible de se plaindre tout le temps ?",
+                "Qui est le plus susceptible de demander une augmentation tous les 6 mois ?", "Qui est le plus susceptible d'avoir déjà été viré plusieurs fois ?",
+                "Qui est le plus susceptible de pleurer aux toilettes ?", "Qui est le plus susceptible de draguer un client ?",
+                "Qui est le plus susceptible de prendre 4 pauses café par heure ?", "Qui est le plus susceptible de rester 15 ans dans la même boîte ?",
+                "Qui est le plus susceptible de devenir consultant juste pour rien foutre ?", "Qui est le plus susceptible de pirater le réseau de la boîte ?",
+                "Qui est le plus susceptible de ne jamais assumer ses erreurs ?", "Qui est le plus susceptible de faire une gaffe en partageant son écran ?",
+                "Qui est le plus susceptible de bosser pendant ses vacances ?", "Qui est le plus susceptible de saboter le travail d'un autre ?",
+                "Qui est le plus susceptible d'avoir le plus d'onglets ouverts ?", "Qui est le plus susceptible de mentir sur son CV ?",
+                "Qui est le plus susceptible de ne pas comprendre son propre job ?", "Qui est le plus susceptible d'être le plus stressé ?",
+                "Qui est le plus susceptible de devenir pote avec les techniciens ?", "Qui est le plus susceptible de créer sa propre boîte demain ?",
+                "Qui est le plus susceptible de réussir un entretien sans aucune compétence ?", "Qui est le plus susceptible de partir le premier à 17h ?",
+                "Qui est le plus susceptible de bosser le week-end sans qu'on lui demande ?", "Qui est le plus susceptible de devenir un génie de l'Excel ?",
+                "Qui est le plus susceptible de faire tomber son café sur un serveur ?", "Qui est le plus susceptible d'avoir 5000 mails non lus ?",
+                "Qui est le plus susceptible de draguer le/la stagiaire ?", "Qui est le plus susceptible de se tromper de destinataire ?",
+                "Qui est le plus susceptible de critiquer la boîte sur les réseaux ?", "Qui est le plus susceptible de voler le déjeuner du boss ?",
+                "Qui est le plus susceptible de devenir le délégué du personnel ?", "Qui est le plus susceptible d'organiser les meilleurs afterworks ?",
+                "Qui est le plus susceptible d'être le plus productif ?", "Qui est le plus susceptible de ne jamais décrocher son téléphone ?",
+                "Qui est le plus susceptible d'avoir un deuxième job caché ?", "Qui est le plus susceptible de se faire détester par tout le service ?",
+                "Qui est le plus susceptible de devenir un bourreau de travail ?", "Qui est le plus susceptible de faire des heures supp non payées ?",
+                "Qui est le plus susceptible de critiquer la cantine tous les jours ?", "Qui est le plus susceptible de ne pas connaître le nom de ses collègues ?",
+                "Qui est le plus susceptible d'avoir toujours une excuse bidon ?", "Qui est le plus susceptible de devenir formateur ?",
+                "Qui est le plus susceptible de ne pas respecter le dress code ?", "Qui est le plus susceptible d'être le plus ambitieux ?",
+                "Qui est le plus susceptible d'avoir le bureau le plus propre ?", "Qui est le plus susceptible de se faire passer pour le chef ?",
+                "Qui est le plus susceptible de ne pas savoir utiliser l'imprimante ?", "Qui est le plus susceptible de faire rire tout le monde en réunion ?",
+                "Qui est le plus susceptible d'être le premier à craquer ?", "Qui est le plus susceptible d'avoir le meilleur réseau ?",
+                "Qui est le plus susceptible de réussir sa reconversion pro ?", "Qui est le plus susceptible de prendre le plus de congés maladie ?"
+            ],
+            spicy: [
+                "Qui est le plus susceptible d'avoir un sex-toy dans son sac ?", "Qui est le plus susceptible de coucher le premier soir ?",
+                "Qui est le plus susceptible d'avoir un compte Tinder caché ?", "Qui est le plus susceptible d'envoyer un message à son ex ce soir ?",
+                "Qui est le plus susceptible de simuler ?", "Qui est le plus susceptible d'avoir déjà fait un plan à trois ?",
+                "Qui est le plus susceptible d'envoyer un nude à la mauvaise personne ?", "Qui est le plus susceptible de fantasmer sur un collègue ?",
+                "Qui est le plus susceptible de regarder l'historique de son partenaire ?", "Qui est le plus susceptible d'avoir déjà été dans un club échangiste ?",
+                "Qui est le plus susceptible de draguer le serveur devant tout le monde ?", "Qui est le plus susceptible de faire une sextape ?",
+                "Qui est le plus susceptible de dire 'je t'aime' après 2 heures ?", "Qui est le plus susceptible de tomber amoureux d'un strip-teaseur ?",
+                "Qui est le plus susceptible de se faire prendre dans un lieu public ?", "Qui est le plus susceptible de sortir avec deux personnes à la fois ?",
+                "Qui est le plus susceptible d'avoir le plus gros catalogue de jouets ?", "Qui est le plus susceptible d'être le plus bruyant ?",
+                "Qui est le plus susceptible d'aimer être dominé ?", "Qui est le plus susceptible de draguer son patron ?",
+                "Qui est le plus susceptible de mentir sur son nombre de conquêtes ?", "Qui est le plus susceptible de dormir nu chaque nuit ?",
+                "Qui est le plus susceptible d'avoir une relation d'un soir avec un inconnu total ?", "Qui est le plus susceptible d'être attiré par le même sexe ?",
+                "Qui est le plus susceptible de cacher une MST (glauque) ?", "Qui est le plus susceptible d'avoir déjà trompé ?",
+                "Qui est le plus susceptible de se marier pour le sexe ?", "Qui est le plus susceptible d'avoir un fétichisme des pieds ?",
+                "Qui est le plus susceptible de coucher pour une pizza ?", "Qui est le plus susceptible de tester tout ce qu'il voit dans les films ?",
+                "Qui est le plus susceptible de draguer les parents d'un ami ?", "Qui est le plus susceptible d'avoir déjà été escort ?",
+                "Qui est le plus susceptible d'aimer se faire regarder ?", "Qui est le plus susceptible de coucher dans un avion ?",
+                "Qui est le plus susceptible d'avoir un compte OnlyFans ?", "Qui est le plus susceptible d'envoyer des sextos en réunion ?",
+                "Qui est le plus susceptible de se faire percer à un endroit intime ?", "Qui est le plus susceptible d'avoir déjà utilisé de la nourriture au lit ?",
+                "Qui est le plus susceptible d'avoir une double vie ?", "Qui est le plus susceptible de mentir sur ses fantasmes ?",
+                "Qui est le plus susceptible de pleurer après l'acte ?", "Qui est le plus susceptible de s'endormir pendant l'acte ?",
+                "Qui est le plus susceptible de critiquer la performance d'un ex devant tout le monde ?", "Qui est le plus susceptible de faire un plan cul avec un voisin ?",
+                "Qui est le plus susceptible d'avoir la collection de lingerie la plus folle ?", "Qui est le plus susceptible de draguer au volant ?",
+                "Qui est le plus susceptible d'être un maniaque sexuel ?", "Qui est le plus susceptible de proposer un plan à quatre ?",
+                "Qui est le plus susceptible de se faire surprendre par ses parents ?", "Qui est le plus susceptible d'avoir déjà embrassé tout le monde ici ?",
+                "Qui est le plus susceptible de coucher avec un membre de la famille de son ex ?", "Qui est le plus susceptible d'avoir déjà été accro aux sites pour adultes ?",
+                "Qui est le plus susceptible d'avoir déjà payé pour du sexe ?", "Qui est le plus susceptible d'aimer les jeux de rôle bizarres ?",
+                "Qui est le plus susceptible d'être un pro du ghosting après une nuit ?", "Qui est le plus susceptible d'avoir déjà simulé une maladie pour ne pas faire l'amour ?",
+                "Qui est le plus susceptible de draguer le mari/la femme de son patron ?", "Qui est le plus susceptible de coucher avec le témoin à un mariage ?",
+                "Qui est le plus susceptible d'avoir déjà utilisé une application pour adultes au travail ?", "Qui est le plus susceptible de faire l'amour dans une voiture en marche ?",
+                "Qui est le plus susceptible de ne jamais porter de sous-vêtements ?", "Qui est le plus susceptible d'être le plus pervers ?",
+                "Qui est le plus susceptible d'avoir déjà goûté son propre... liquide ?", "Qui est le plus susceptible d'avoir une liste de records ?",
+                "Qui est le plus susceptible d'avoir déjà brisé un lit ?", "Qui est le plus susceptible d'être attiré par des gens beaucoup plus vieux ?",
+                "Qui est le plus susceptible de se faire virer d'un hôtel pour bruit ?", "Qui est le plus susceptible d'avoir déjà utilisé des menottes ?",
+                "Qui est le plus susceptible de draguer à un enterrement ?", "Qui est le plus susceptible de coucher avec un inconnu dans un festival ?",
+                "Qui est le plus susceptible de mentir sur sa virginité ?", "Qui est le plus susceptible de vouloir devenir un sex-symbol ?",
+                "Qui est le plus susceptible de tester le bondage ?", "Qui est le plus susceptible d'avoir déjà utilisé de la glace au lit ?",
+                "Qui est le plus susceptible d'être un(e) pro du kamasutra ?", "Qui est le plus susceptible de vouloir le faire dans les bois ?",
+                "Qui est le plus susceptible d'avoir déjà embrassé quelqu'un juste pour un pari ?", "Qui est le plus susceptible de se faire tatouer sur les fesses ?",
+                "Qui est le plus susceptible d'avoir un fantasme sur un super-héros ?", "Qui est le plus susceptible de vouloir essayer le tantrisme ?"
+            ],
+            trash: [
+                "Qui est le plus susceptible de finir la tête dans la cuvette ?", "Qui est le plus susceptible de ne pas se doucher pendant 3 jours ?",
+                "Qui est le plus susceptible de vomir dans un Uber ?", "Qui est le plus susceptible d'uriner dans une piscine ?",
+                "Qui est le plus susceptible de ne jamais rendre l'argent ?", "Qui est le plus susceptible de faire un blackout total ?",
+                "Qui est le plus susceptible de piquer du PQ au resto ?", "Qui est le plus susceptible de manger de la bouffe par terre ?",
+                "Qui est le plus susceptible de sortir avec l'ex d'un ami ?", "Qui est le plus susceptible de fouiller dans les placards d'un hôte ?",
+                "Qui est le plus susceptible de péter en public et de nier ?", "Qui est le plus susceptible de sniffer n'importe quoi ?",
+                "Qui est le plus susceptible de se faire virer d'un bar ?", "Qui est le plus susceptible de ne pas se laver les mains ?",
+                "Qui est le plus susceptible de mentir pour emballer ?", "Qui est le plus susceptible de voler dans un magasin ?",
+                "Qui est le plus susceptible de manger ses crottes de nez ?", "Qui est le plus susceptible d'être déjà allé en cellule de dégrisement ?",
+                "Qui est le plus susceptible de manger de la nourriture pour chien ?", "Qui est le plus susceptible de ne pas changer de caleçon pendant 2 jours ?",
+                "Qui est le plus susceptible d'insulter un flic ?", "Qui est le plus susceptible de partir sans payer l'addition ?",
+                "Qui est le plus susceptible de piquer dans le frigo d'un coloc ?", "Qui est le plus susceptible de se battre pour une frite ?",
+                "Qui est le plus susceptible de vomir sur quelqu'un ?", "Qui est le plus susceptible d'avoir les pieds qui puent le plus ?",
+                "Qui est le plus susceptible de se réveiller dans un pays étranger ?", "Qui est le plus susceptible de draguer quelqu'un à un enterrement ?",
+                "Qui est le plus susceptible de ne jamais se brosser les dents ?", "Qui est le plus susceptible de mentir sur sa situation financière ?",
+                "Qui est le plus susceptible de pécho à un mariage de famille ?", "Qui est le plus susceptible de se faire passer pour un handicapé ?",
+                "Qui est le plus susceptible de manger un truc périmé de 1 mois ?", "Qui est le plus susceptible d'avoir une chambre qui ressemble à une décharge ?",
+                "Qui est le plus susceptible d'avoir déjà fait pipi au lit étant adulte ?", "Qui est le plus susceptible de devenir un clochard par choix ?",
+                "Qui est le plus susceptible de se faire tatouer un truc débile bourré ?", "Qui est le plus susceptible de ne jamais tirer la chasse ?",
+                "Qui est le plus susceptible d'être le plus radin ?", "Qui est le plus susceptible de critiquer ses amis dans leur dos ?",
+                "Qui est le plus susceptible d'avoir déjà volé une voiture ?", "Qui est le plus susceptible de mentir à la police ?",
+                "Qui est le plus susceptible de tricher au poker ?", "Qui est le plus susceptible de dire du mal d'un mort ?",
+                "Qui est le plus susceptible de devenir un criminel ?", "Qui est le plus susceptible de ne jamais ranger sa cuisine ?",
+                "Qui est le plus susceptible d'avoir une hygiène intime douteuse ?", "Qui est le plus susceptible de vendre son corps pour de l'alcool ?",
+                "Qui est le plus susceptible de sniffer de la colle ?", "Qui est le plus susceptible de piquer les médicaments des autres ?",
+                "Qui est le plus susceptible de se faire bannir de tous les casinos ?", "Qui est le plus susceptible de se raser les sourcils bourré ?",
+                "Qui est le plus susceptible d'être le plus sale du groupe ?", "Qui est le plus susceptible de manger de la terre ?",
+                "Qui est le plus susceptible de pisser dans une bouteille par flemme ?", "Qui est le plus susceptible de ne pas mettre de déo en été ?",
+                "Qui est le plus susceptible de se croire au-dessus des lois ?", "Qui est le plus susceptible de mentir sur sa propre mort ?",
+                "Qui est le plus susceptible d'avoir déjà mangé un insecte ?", "Qui est le plus susceptible de piquer les pourboires ?",
+                "Qui est le plus susceptible de draguer la femme d'un pote ?", "Qui est le plus susceptible d'être le plus dégoûtant ?",
+                "Qui est le plus susceptible de s'endormir dans ses propres vomissures ?", "Qui est le plus susceptible de ne jamais laver ses draps ?",
+                "Qui est le plus susceptible d'avoir une maladie bizarre ?", "Qui est le plus susceptible de mentir sur son nom ?",
+                "Qui est le plus susceptible de se faire passer pour une célébrité ?", "Qui est le plus susceptible de tricher à un jeu de société ?",
+                "Qui est le plus susceptible de manger dans les poubelles ?", "Qui est le plus susceptible d'être le plus détesté ?",
+                "Qui est le plus susceptible de ne jamais s'excuser ?", "Qui est le plus susceptible d'avoir un cœur de pierre ?",
+                "Qui est le plus susceptible de se venger cruellement ?", "Qui est le plus susceptible de détruire la vie de quelqu'un ?",
+                "Qui est le plus susceptible d'avoir déjà été recherché ?", "Qui est le plus susceptible d'avoir une double identité ?",
+                "Qui est le plus susceptible de vendre de la drogue ?", "Qui est le plus susceptible d'être un psychopathe ?",
+                "Qui est le plus susceptible de ne jamais pleurer ?", "Qui est le plus susceptible de finir sa vie en prison ?"
+            ],
+            newyear: [
+                "Qui est le plus susceptible de tenir ses résolutions ?", "Qui est le plus susceptible de rater le décompte ?",
+                "Qui est le plus susceptible de se marier en 2026 ?", "Qui est le plus susceptible de gagner au loto ?",
+                "Qui est le plus susceptible de faire le tour du monde ?", "Qui est le plus susceptible de changer de tête ?",
+                "Qui est le plus susceptible de ne jamais aller à la salle ?", "Qui est le plus susceptible d'avoir un gosse ?",
+                "Qui est le plus susceptible de devenir viral ?", "Qui est le plus susceptible de pleurer à minuit ?",
+                "Qui est le plus susceptible de faire une annonce choc ?", "Qui est le plus susceptible de déménager ?",
+                "Qui est le plus susceptible de changer de métier ?", "Qui est le plus susceptible de trouver le grand amour ?",
+                "Qui est le plus susceptible d'être le plus heureux ?", "Qui est le plus susceptible de gagner beaucoup d'oseille ?",
+                "Qui est le plus susceptible de devenir plus responsable ?", "Qui est le plus susceptible de s'acheter une voiture de sport ?",
+                "Qui est le plus susceptible de partir vivre au soleil ?", "Qui est le plus susceptible de réussir ses examens ?",
+                "Qui est le plus susceptible d'écrire un livre ?", "Qui est le plus susceptible de faire une fête incroyable ?",
+                "Qui est le plus susceptible d'apprendre à cuisiner ?", "Qui est le plus susceptible de faire un marathon ?",
+                "Qui est le plus susceptible de devenir zen ?", "Qui est le plus susceptible de s'engager en politique ?",
+                "Qui est le plus susceptible de se faire tatouer l'année 2026 ?", "Qui est le plus susceptible de ne plus fumer ?",
+                "Qui est le plus susceptible de devenir végétarien ?", "Qui est le plus susceptible de s'acheter une maison ?",
+                "Qui est le plus susceptible de faire une découverte majeure ?", "Qui est le plus susceptible de devenir un pro du yoga ?",
+                "Qui est le plus susceptible de passer à la télé ?", "Qui est le plus susceptible de gagner un concours ?",
+                "Qui est le plus susceptible de faire la paix avec ses ennemis ?", "Qui est le plus susceptible de devenir plus généreux ?",
+                "Qui est le plus susceptible d'adopter un animal ?", "Qui est le plus susceptible de se réconcilier avec un ex ?",
+                "Qui est le plus susceptible de devenir minimaliste ?", "Qui est le plus susceptible de faire le buzz sur Instagram ?",
+                "Qui est le plus susceptible d'inventer un truc génial ?", "Qui est le plus susceptible de se mettre au sport à fond ?",
+                "Qui est le plus susceptible de ne jamais faire de résolutions ?", "Qui est le plus susceptible de rater son vol pour les vacances ?",
+                "Qui est le plus susceptible de devenir un expert en vin ?", "Qui est le plus susceptible de s'acheter un instrument ?",
+                "Qui est le plus susceptible de ne plus utiliser les réseaux sociaux ?", "Qui est le plus susceptible de faire une rencontre mémorable ?",
+                "Qui est le plus susceptible de devenir le plus sociable ?", "Qui est le plus susceptible de faire un saut en parachute ?",
+                "Qui est le plus susceptible de devenir un fan de randonnée ?", "Qui est le plus susceptible de s'acheter une moto ?",
+                "Qui est le plus susceptible de devenir un cordon bleu ?", "Qui est le plus susceptible de ne plus boire d'alcool ?",
+                "Qui est le plus susceptible de faire une retraite spirituelle ?", "Qui est le plus susceptible d'avoir le plus de succès ?",
+                "Qui est le plus susceptible de devenir plus organisé ?", "Qui est le plus susceptible de se faire percer ?",
+                "Qui est le plus susceptible d'apprendre une nouvelle langue ?", "Qui est le plus susceptible de devenir un passionné de jardinage ?",
+                "Qui est le plus susceptible de s'acheter un truc de luxe ?", "Qui est le plus susceptible de devenir un influenceur fitness ?",
+                "Qui est le plus susceptible de faire une action héroïque ?", "Qui est le plus susceptible de devenir le plus cultivé ?",
+                "Qui est le plus susceptible de s'installer à la campagne ?", "Qui est le plus susceptible de devenir un photographe pro ?",
+                "Qui est le plus susceptible de réussir son permis ?", "Qui est le plus susceptible d'avoir le plus de followers ?",
+                "Qui est le plus susceptible de devenir un artiste ?", "Qui est le plus susceptible d'être le plus épanoui ?",
+                "Qui est le plus susceptible de changer radicalement de vie ?", "Qui est le plus susceptible de ne plus procrastiner ?",
+                "Qui est le plus susceptible de devenir un grand dormeur ?", "Qui est le plus susceptible de s'intéresser à l'astrologie ?",
+                "Qui est le plus susceptible d'être le plus chanceux ?", "Qui est le plus susceptible de passer une année inoubliable ?",
+                "Qui est le plus susceptible de devenir un grand collectionneur ?", "Qui est le plus susceptible de s'acheter un van ?",
+                "Qui est le plus susceptible de faire une croisière ?", "Qui est le plus susceptible de rester le même ?",
+                "Qui est le plus susceptible d'être celui qui organise tout ?"
+            ]
+        };
+
+        let selected = ['fun'];
+        let playlist = [];
+        let index = -1;
+        let audio = true;
+
+        const setupSc = document.getElementById('setup');
+        const gameSc = document.getElementById('game');
+        const qText = document.getElementById('q-text');
+        const bCat = document.getElementById('b-cat');
+        const count = document.getElementById('count');
+
+        document.querySelectorAll('.cat-card').forEach(c => {
+            c.onclick = () => {
+                const cat = c.dataset.cat;
+                if(c.classList.contains('selected')) {
+                    if(selected.length > 1) {
+                        c.classList.remove('selected');
+                        selected = selected.filter(v => v !== cat);
+                    }
+                } else {
+                    c.classList.add('selected');
+                    selected.push(cat);
+                }
+            };
+        });
+
+        function speak(t) {
+            if(!audio || !window.speechSynthesis) return;
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(t);
+            u.lang = 'fr-FR';
+            u.rate = 1;
+            const voices = window.speechSynthesis.getVoices();
+            u.voice = voices.find(v => v.lang.startsWith('fr') && v.name.includes('Google')) || voices.find(v => v.lang.startsWith('fr'));
+            window.speechSynthesis.speak(u);
+        }
+
+        function show() {
+            if(window.speechSynthesis.paused) window.speechSynthesis.resume();
+            index++;
+            if(index >= playlist.length) { index = 0; playlist.sort(() => Math.random() - 0.5); }
+            const item = playlist[index];
+            qText.style.opacity = 0;
+            setTimeout(() => {
+                qText.textContent = item.text;
+                bCat.textContent = item.label;
+                count.textContent = `${index + 1} / ${playlist.length}`;
+                qText.style.opacity = 1;
+                speak(item.text);
+            }, 250);
+        }
+
+        document.getElementById('start').onclick = () => {
+            playlist = [];
+            selected.forEach(c => {
+                data[c].forEach(txt => playlist.push({ text: txt, label: c.toUpperCase() }));
+            });
+            playlist.sort(() => Math.random() - 0.5);
+            index = -1;
+            setupSc.classList.remove('active');
+            gameSc.classList.add('active');
+            show();
+        };
+
+        document.getElementById('next').onclick = show;
+        document.getElementById('to-menu').onclick = () => { gameSc.classList.remove('active'); setupSc.classList.add('active'); window.speechSynthesis.cancel(); };
+        document.getElementById('toggle-audio').onclick = () => {
+            audio = !audio;
+            document.getElementById('toggle-audio').textContent = audio ? "🔊 ON" : "🔇 OFF";
+            if(!audio) window.speechSynthesis.cancel();
+        };
+
+        window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+    </script>
+</body>
+</html>
